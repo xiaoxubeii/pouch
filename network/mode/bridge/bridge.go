@@ -12,6 +12,7 @@ import (
 	"github.com/alibaba/pouch/network"
 	"github.com/alibaba/pouch/pkg/errtypes"
 
+	"github.com/alibaba/pouch/pkg/utils"
 	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/pkg/errors"
@@ -30,55 +31,39 @@ func New(ctx context.Context, config network.BridgeConfig, manager mgr.NetworkMg
 		}
 	}
 
-	// set bridge name
+	// get bridge name
 	bridgeName := DefaultBridge
 	if config.Name != "" {
 		bridgeName = config.Name
 	}
 
+	// get bridge ip
+	bridgeIP := utils.StringDefault(config.IP, DefaultIPNet)
+	ipNet, err := netlink.ParseIPNet(bridgeIP)
+	if err != nil {
+		return fmt.Errorf("failed to parse ip %v", bridgeIP)
+	}
+	logrus.Debugf("initialize bridge network, bridge ip: %s.", ipNet)
+
 	// init host bridge network.
-	br, err := initBridgeDevice(bridgeName)
+	_, err = initBridgeDevice(bridgeName, ipNet)
 	if err != nil {
 		return err
 	}
 
-	var (
-		bridgeIPv4Address string
-	)
-	Addrs, err := netlink.AddrList(br, netlink.FAMILY_V4)
+	// get bridge subnet
+	_, subnet, err := net.ParseCIDR(bridgeIP)
 	if err != nil {
-		return errors.Wrap(err, "failed to get bridge addr")
+		return fmt.Errorf("failted to parse subnet %v", bridgeIP)
 	}
-	for _, addr := range Addrs {
-		cidr := addr.String()
-		if strings.Contains(cidr, ":") {
-			continue
-		}
-
-		parts := strings.Split(cidr, " ")
-		if len(parts) != 2 {
-			continue
-		}
-
-		bridgeIPv4Address = parts[0]
-		break
-	}
-
-	// get subnet
-	subnet := DefaultSubnet
-	if config.IP != "" {
-		subnet = config.IP
-	} else if bridgeIPv4Address != "" {
-		subnet = bridgeIPv4Address
-	}
-	logrus.Debugf("initialize bridge network, subnet: %s", subnet)
+	logrus.Debugf("initialize bridge network, bridge network: %s", subnet)
 
 	// get ip range
 	ipRange := DefaultIPRange
 	if config.FixedCIDR != "" {
 		ipRange = config.FixedCIDR
 	} else {
-		ipRange = subnet
+		ipRange = subnet.String()
 	}
 	logrus.Debugf("initialize bridge network, bridge ip range in subnet: %s", ipRange)
 
@@ -86,30 +71,12 @@ func New(ctx context.Context, config network.BridgeConfig, manager mgr.NetworkMg
 	gateway := DefaultGateway
 	if config.GatewayIPv4 != "" {
 		gateway = config.GatewayIPv4
-	} else {
-		// get the default route set as gateway.
-		routes, err := netlink.RouteList(br, netlink.FAMILY_V4)
-		if err != nil {
-			return errors.Wrap(err, "failed to get route list")
-		}
-		for _, route := range routes {
-			gw := route.Gw.String()
-			if gw != "" && gw != "<nil>" {
-				gateway = gw
-				break
-			}
-		}
-
-		// nat mode bridge have no default route, so let the bridge ip as gateway.
-		if bridgeIPv4Address != "" {
-			gateway = strings.Split(bridgeIPv4Address, "/")[0]
-		}
 	}
 	logrus.Debugf("initialize bridge network, gateway: %s", gateway)
 
 	ipamV4Conf := types.IPAMConfig{
 		AuxAddress: make(map[string]string),
-		Subnet:     subnet,
+		Subnet:     subnet.String(),
 		IPRange:    ipRange,
 		Gateway:    gateway,
 	}
@@ -148,15 +115,18 @@ func New(ctx context.Context, config network.BridgeConfig, manager mgr.NetworkMg
 	return err
 }
 
-func initBridgeDevice(name string) (netlink.Link, error) {
+func initBridgeDevice(name string, ipNet *net.IPNet) (netlink.Link, error) {
 	br, err := netlink.LinkByName(name)
-	if err == nil && br != nil {
-		return br, nil
+	if err == nil && br != nil { // we need delete old link
+		err := netlink.LinkDel(br)
+		if err != nil {
+			return nil, fmt.Errorf("failed to clean old br %v", err)
+		}
 	}
 
 	// generate mac address for bridge.
 	var ip []int
-	for _, v := range strings.Split(DefaultBridgeIP, ".") {
+	for _, v := range strings.Split(ipNet.IP.String(), ".") {
 		tmp, _ := strconv.Atoi(v)
 		ip = append(ip, tmp)
 	}
@@ -184,7 +154,7 @@ func initBridgeDevice(name string) (netlink.Link, error) {
 		}
 	}()
 
-	addr, err := netlink.ParseAddr(DefaultSubnet)
+	addr, err := netlink.ParseAddr(ipNet.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse ip address")
 	}

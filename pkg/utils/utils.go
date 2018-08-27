@@ -185,7 +185,7 @@ func Contains(input []interface{}, value interface{}) (bool, error) {
 			}
 		}
 		return false, nil
-	// TODO: add more types
+		// TODO: add more types
 	default:
 		r := reflect.TypeOf(v)
 		return false, fmt.Errorf("Not support: %s", r)
@@ -329,4 +329,11 @@ func StringSliceEqual(s1, s2 []string) bool {
 	}
 
 	return true
+}
+
+func StringDefault(s string, val string) string {
+	if s != "" {
+		return s
+	}
+	return val
 }
