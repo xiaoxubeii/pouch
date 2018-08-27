@@ -330,3 +330,11 @@ func StringSliceEqual(s1, s2 []string) bool {
 
 	return true
 }
+
+// StringDefault return default value if s is empty, otherwise return s.
+func StringDefault(s string, val string) string {
+	if s != "" {
+		return s
+	}
+	return val
+}
