@@ -150,8 +150,11 @@ func New(ctx context.Context, config network.BridgeConfig, manager mgr.NetworkMg
 
 func initBridgeDevice(name string) (netlink.Link, error) {
 	br, err := netlink.LinkByName(name)
-	if err == nil && br != nil {
-		return br, nil
+	if err == nil && br != nil { // we need delete old link
+		err := netlink.LinkDel(br)
+		if err != nil {
+			return nil, fmt.Errorf("failed to clean old br %v", err)
+		}
 	}
 
 	// generate mac address for bridge.
