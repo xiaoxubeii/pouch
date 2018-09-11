@@ -115,12 +115,43 @@ func New(ctx context.Context, config network.BridgeConfig, manager mgr.NetworkMg
 	return err
 }
 
+func containIP(ip net.IPNet, br netlink.Link) bool {
+	result := false
+	addrs, err := netlink.AddrList(br, netlink.FAMILY_V4)
+	if err == nil {
+		for _, addr := range addrs {
+			if ip.IP.Equal(br.IP) && ip.Mask.Size() == addr.Mask.Size() {
+				result = true
+				break
+			}
+		}
+	}
+	return result
+}
+
+func existVethPair(br netlink.Link) bool {
+	allLinks, err := netlink.LinkList()
+	if err != nil {
+		return false
+	}
+	for _, l := range allLinks {
+		if l.Type() == "veth" && l.Attrs().MasterIndex == br.Attrs().Index {
+			return true
+		}
+	}
+	return false
+}
+
 func initBridgeDevice(name string, ipNet *net.IPNet) (netlink.Link, error) {
 	br, err := netlink.LinkByName(name)
-	if err == nil && br != nil { // we need delete old link
-		err := netlink.LinkDel(br)
-		if err != nil {
-			return nil, fmt.Errorf("failed to clean old br %v", err)
+	if err == nil && br != nil {
+		if containIP(*ipNet, br) { // do nothing if ip exists
+			return br
+		} else {
+			if existVethPair(br) {
+				return nil, fmt.Errorf("failed to remove old bridge device due to existing veth pair")
+			}
+			netlink.LinkDel(br)
 		}
 	}
 
