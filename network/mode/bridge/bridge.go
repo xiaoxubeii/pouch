@@ -120,9 +120,13 @@ func containIP(ip net.IPNet, br netlink.Link) bool {
 	addrs, err := netlink.AddrList(br, netlink.FAMILY_V4)
 	if err == nil {
 		for _, addr := range addrs {
-			if ip.IP.Equal(br.IP) && ip.Mask.Size() == addr.Mask.Size() {
-				result = true
-				break
+			if ip.IP.Equal(addr.IP) {
+				sizeA, _ := ip.Mask.Size()
+				sizeB, _ := addr.Mask.Size()
+				if sizeA == sizeB {
+					result = true
+					break
+				}
 			}
 		}
 	}
