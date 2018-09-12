@@ -11,8 +11,8 @@ import (
 	"github.com/alibaba/pouch/daemon/mgr"
 	"github.com/alibaba/pouch/network"
 	"github.com/alibaba/pouch/pkg/errtypes"
-
 	"github.com/alibaba/pouch/pkg/utils"
+
 	"github.com/docker/libnetwork/drivers/bridge"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/pkg/errors"
