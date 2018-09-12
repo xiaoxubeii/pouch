@@ -88,6 +88,14 @@ func (io *IO) Close() error {
 	return nil
 }
 
+// EscapeError is special error which returned by a TTY proxy reader's Read()
+// method in case its detach escape sequence is read.
+type EscapeError struct{}
+
+func (EscapeError) Error() string {
+	return "read escape sequence"
+}
+
 // ContainerIO used to control the container's stdio.
 type ContainerIO struct {
 	Option
@@ -97,6 +105,9 @@ type ContainerIO struct {
 	closed   bool
 	// The stdin of all backends should put into ring first.
 	ring *ringbuffer.RingBuffer
+
+	escapeKeyPos int
+	escapeKeys   []byte
 }
 
 func (cio *ContainerIO) add(opt *Option, typ stdioType, backends map[string]containerBackend) {
@@ -210,9 +221,48 @@ func (cio *ContainerIO) Read(p []byte) (int, error) {
 	if !ok {
 		return 0, nil
 	}
-	n := copy(p, data)
+	nr := copy(p, data)
+	if len(cio.escapeKeys) == 0 {
+		return nr, nil
+	}
 
-	return n, nil
+	preserve := func() {
+		// this preserves the original key presses in the passed in buffer
+		nr += cio.escapeKeyPos
+		preserve := make([]byte, 0, cio.escapeKeyPos+len(p))
+		preserve = append(preserve, cio.escapeKeys[:cio.escapeKeyPos]...)
+		preserve = append(preserve, data...)
+		cio.escapeKeyPos = 0
+		copy(p[0:nr], preserve)
+	}
+
+	if nr != 1 {
+		if cio.escapeKeyPos > 0 {
+			preserve()
+		}
+		return nr, nil
+	}
+
+	if data[0] != cio.escapeKeys[cio.escapeKeyPos] {
+		if cio.escapeKeyPos > 0 {
+			preserve()
+		}
+		return nr, nil
+	}
+
+	if cio.escapeKeyPos == len(cio.escapeKeys)-1 {
+		return 0, EscapeError{}
+	}
+
+	// Looks like we've got an escape key, but we need to match again on the next
+	// read.
+	// Store the current escape key we found so we can look for the next one on
+	// the next read.
+	// Since this is an escape key, make sure we don't let the caller read it
+	// If later on we find that this is not the escape sequence, we'll add the
+	// keys back
+	cio.escapeKeyPos++
+	return nr - cio.escapeKeyPos, nil
 }
 
 // Write implements the standard Write interface.
