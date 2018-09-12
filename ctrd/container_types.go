@@ -23,6 +23,8 @@ type Container struct {
 
 	// RootFSProvided is a flag to point the container is created by specifying rootfs
 	RootFSProvided bool
+
+	DetachKeys string
 }
 
 // Process wraps exec process's info.

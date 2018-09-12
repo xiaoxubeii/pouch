@@ -1543,6 +1543,7 @@ func (mgr *ContainerManager) openContainerIO(c *Container) (*containerio.IO, err
 		containerio.WithID(c.ID),
 		containerio.WithLoggerInfo(logInfo),
 		containerio.WithStdin(c.Config.OpenStdin),
+		containerio.WithEscapeKeys(c.DetachKeys),
 	}
 
 	options = append(options, logOptionsForContainerio(c)...)
@@ -1724,7 +1725,7 @@ func attachConfigToOptions(attach *AttachConfig) []func(*containerio.Option) {
 		options = append(options, containerio.WithCriLogFile(attach.CriLogFile))
 	}
 
-	if attach.escapeKeys != nil {
+	if attach.escapeKeys != "" {
 		options = append(options, containerio.WithEscapeKeys(attach.escapeKeys))
 	}
 

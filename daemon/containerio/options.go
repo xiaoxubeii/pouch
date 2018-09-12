@@ -147,7 +147,7 @@ func WithStdinStream() func(*Option) {
 }
 
 // WithCriLogFile specified the cri log file backend.
-func jjjjWithCriLogFile(criLogFile *os.File) func(*Option) {
+func WithCriLogFile(criLogFile *os.File) func(*Option) {
 	return func(opt *Option) {
 		if opt.backends == nil {
 			opt.backends = make(map[string]struct{})
