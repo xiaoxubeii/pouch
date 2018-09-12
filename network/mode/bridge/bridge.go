@@ -116,31 +116,28 @@ func New(ctx context.Context, config network.BridgeConfig, manager mgr.NetworkMg
 }
 
 func containIP(ip net.IPNet, br netlink.Link) bool {
-	result := false
 	addrs, err := netlink.AddrList(br, netlink.FAMILY_V4)
 	if err == nil {
 		for _, addr := range addrs {
 			if ip.IP.Equal(addr.IP) {
-				sizeA, _ := ip.Mask.Size()
-				sizeB, _ := addr.Mask.Size()
-				if sizeA == sizeB {
-					result = true
-					break
+				sizea, _ := ip.Mask.Size()
+				sizeb, _ := addr.Mask.Size()
+				if sizea == sizeb {
+					return true
 				}
 			}
 		}
 	}
-	return result
+	return false
 }
 
 func existVethPair(br netlink.Link) bool {
 	allLinks, err := netlink.LinkList()
-	if err != nil {
-		return false
-	}
-	for _, l := range allLinks {
-		if l.Type() == "veth" && l.Attrs().MasterIndex == br.Attrs().Index {
-			return true
+	if err == nil {
+		for _, l := range allLinks {
+			if l.Type() == "veth" && l.Attrs().MasterIndex == br.Attrs().Index {
+				return true
+			}
 		}
 	}
 	return false
@@ -150,7 +147,7 @@ func initBridgeDevice(name string, ipNet *net.IPNet) (netlink.Link, error) {
 	br, err := netlink.LinkByName(name)
 	if err == nil && br != nil {
 		if containIP(*ipNet, br) { // do nothing if ip exists
-			return br
+			return br, nil
 		} else {
 			if existVethPair(br) {
 				return nil, fmt.Errorf("failed to remove old bridge device due to existing veth pair")
