@@ -1724,6 +1724,10 @@ func attachConfigToOptions(attach *AttachConfig) []func(*containerio.Option) {
 		options = append(options, containerio.WithCriLogFile(attach.CriLogFile))
 	}
 
+	if attach.escapeKeys != nil {
+		options = append(options, containerio.WithEscapeKeys(attach.escapeKeys))
+	}
+
 	return options
 }
 

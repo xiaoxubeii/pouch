@@ -142,6 +142,8 @@ type AttachConfig struct {
 
 	// Attach to the container to get its log.
 	CriLogFile *os.File
+
+	escapeKeys string
 }
 
 // ContainerListOption wraps the container list interface params.

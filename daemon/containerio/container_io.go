@@ -107,7 +107,6 @@ type ContainerIO struct {
 	ring *ringbuffer.RingBuffer
 
 	escapeKeyPos int
-	escapeKeys   []byte
 }
 
 func (cio *ContainerIO) add(opt *Option, typ stdioType, backends map[string]containerBackend) {

@@ -25,6 +25,8 @@ type Option struct {
 	pipe          *io.PipeWriter
 	streams       *remotecommand.Streams
 	criLogFile    *os.File
+
+	escapeKeys []byte
 }
 
 // NewOption creates the Option instance.
@@ -145,12 +147,18 @@ func WithStdinStream() func(*Option) {
 }
 
 // WithCriLogFile specified the cri log file backend.
-func WithCriLogFile(criLogFile *os.File) func(*Option) {
+func jjjjWithCriLogFile(criLogFile *os.File) func(*Option) {
 	return func(opt *Option) {
 		if opt.backends == nil {
 			opt.backends = make(map[string]struct{})
 		}
 		opt.backends["cri-log-file"] = struct{}{}
 		opt.criLogFile = criLogFile
+	}
+}
+
+func WithEscapeKeys(escapeKeys string) func(*Option) {
+	return func(opt *Option) {
+		opt.escapeKeys = []byte(escapeKeys)
 	}
 }
