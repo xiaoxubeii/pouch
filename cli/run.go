@@ -8,7 +8,10 @@ import (
 	"strings"
 
 	"github.com/alibaba/pouch/apis/types"
+	"github.com/alibaba/pouch/pkg/ioutils"
+	"github.com/alibaba/pouch/pkg/term"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
@@ -125,12 +128,31 @@ func (rc *RunCommand) runRun(args []string) error {
 		}
 		defer conn.Close()
 
+		var in io.Reader = os.Stdin
+		escapeKeys := term.DefaultEscapeKeys
+		// Wrap the input to detect detach escape sequence.
+		// Use default escape keys if an invalid sequence is given.
+		if rc.detachKeys != "" {
+			customEscapeKeys, err := term.ToBytes(rc.detachKeys)
+			if err != nil {
+				logrus.Warnf("invalid detach escape keys, using default: %s", err)
+			} else {
+				escapeKeys = customEscapeKeys
+			}
+		}
+
+		in = ioutils.NewReadCloserWrapper(term.NewEscapeProxy(os.Stdin, escapeKeys), os.Stdin.Close)
+
 		go func() {
 			io.Copy(os.Stdout, br)
 			wait <- struct{}{}
 		}()
 		go func() {
-			io.Copy(conn, os.Stdin)
+			_, err := io.Copy(conn, in)
+			if _, ok := err.(term.EscapeError); ok {
+				wait <- struct{}{}
+				return
+			}
 		}()
 	}
 
