@@ -119,7 +119,7 @@ func (rc *RunCommand) runRun(args []string) error {
 			}()
 		}
 
-		conn, br, err := apiClient.ContainerAttach(ctx, containerName, rc.stdin)
+		conn, br, err := apiClient.ContainerAttach(ctx, containerName, rc.detachKeys, rc.stdin)
 		if err != nil {
 			return fmt.Errorf("failed to attach container: %v", err)
 		}

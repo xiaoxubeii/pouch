@@ -253,11 +253,12 @@ func (s *Server) attachContainer(ctx context.Context, rw http.ResponseWriter, re
 	}
 
 	attach := &mgr.AttachConfig{
-		Hijack:  hijacker,
-		Stdin:   req.FormValue("stdin") == "1",
-		Stdout:  true,
-		Stderr:  true,
-		Upgrade: upgrade,
+		Hijack:     hijacker,
+		Stdin:      req.FormValue("stdin") == "1",
+		Stdout:     true,
+		Stderr:     true,
+		Upgrade:    upgrade,
+		DetachKeys: req.FormValue("detachKeys"),
 	}
 
 	if err := s.ContainerMgr.Attach(ctx, name, attach); err != nil {
