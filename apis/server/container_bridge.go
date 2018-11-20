@@ -17,6 +17,7 @@ import (
 	"github.com/alibaba/pouch/pkg/streams"
 	"github.com/alibaba/pouch/pkg/utils"
 	"github.com/alibaba/pouch/pkg/utils/filters"
+	"github.com/docker/docker/pkg/term"
 
 	"github.com/go-openapi/strfmt"
 	"github.com/gorilla/mux"
@@ -316,6 +317,7 @@ func (s *Server) attachContainer(ctx context.Context, rw http.ResponseWriter, re
 	attach.Stdout = stdout
 	attach.UseStderr = true
 	attach.Stderr = stdout
+	attach.DetachKeys = term.ToBytes(mux.Vars(req)["detachKeys"])
 
 	if err := s.ContainerMgr.AttachContainerIO(ctx, name, attach); err != nil {
 		stdout.Write([]byte(err.Error() + "\r\n"))

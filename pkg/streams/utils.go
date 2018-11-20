@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 
+	"github.com/docker/docker/pkg/term"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 )
@@ -34,6 +35,7 @@ type AttachConfig struct {
 
 	Stdin          io.ReadCloser
 	Stdout, Stderr io.Writer
+	DetachKeys     []byte
 }
 
 // CopyPipes will watchs the data pipe's channel, like sticked to the pipe.
@@ -95,7 +97,12 @@ func (s *Stream) Attach(ctx context.Context, cfg *AttachConfig) <-chan error {
 				}
 			}()
 
-			_, err := io.Copy(s.StdinPipe(), cfg.Stdin)
+			var err error
+			if cfg.Terminal {
+				_, err = copyEscapable(s.StdinPipe(), cfg.Stdin, cfg.DetachKeys)
+			} else {
+				_, err = io.Copy(s.StdinPipe(), cfg.Stdin)
+			}
 			if err == io.ErrClosedPipe {
 				err = nil
 			}
@@ -182,4 +189,16 @@ func (s *Stream) Attach(ctx context.Context, cfg *AttachConfig) <-chan error {
 		}
 	}()
 	return errCh
+}
+
+var defaultEscapeSequence = []byte{16, 17} // ctrl-p, ctrl-q
+
+func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
+	if len(keys) == 0 {
+		keys = defaultEscapeSequence
+	}
+	pr := term.NewEscapeProxy(src, keys)
+	defer src.Close()
+
+	return io.Copy(dst, pr)
 }

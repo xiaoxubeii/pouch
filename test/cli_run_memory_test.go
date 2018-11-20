@@ -193,6 +193,7 @@ func (suite *PouchRunMemorySuite) TestRunMemoryOOM(c *check.C) {
 	ret := command.PouchRun("run", "-m", "20m", "--name", cname, busyboxImage, "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
 	defer DelContainerForceMultyTime(c, cname)
 	ret.Assert(c, icmd.Expected{ExitCode: 137})
+	ret.Stdout
 }
 
 // TestRunWithMemoryFlag test pouch run with memory flags

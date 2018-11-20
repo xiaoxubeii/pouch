@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -12,6 +13,8 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"time"
+
+	"github.com/docker/docker/pkg/term"
 )
 
 // RespError defines the response error.
@@ -60,6 +63,15 @@ func (client *APIClient) delete(ctx context.Context, path string, query url.Valu
 
 func (client *APIClient) hijack(ctx context.Context, path string, query url.Values, obj interface{}, header map[string][]string) (net.Conn, *bufio.Reader, error) {
 	body, err := objectToJSONStream(obj)
+	escapeKeys := pterm.DefaultEscapeKeys
+	if rc.detachKeys != "" {
+		customEscapeKeys, err := term.ToBytes(rc.detachKeys)
+		if err != nil {
+			fmt.Printf("invalid detach escape keys, using default: %s", err)
+		} else {
+			escapeKeys = customEscapeKeys
+		}
+	}
 	if err != nil {
 		return nil, nil, err
 	}

@@ -133,8 +133,6 @@ func (rc *RunCommand) runRun(args []string) error {
 		}
 		defer conn.Close()
 
-		tfd, _ := term.GetFdInfo(os.Stdin)
-		tstate, _ := term.SaveState(tfd)
 		escapeKeys := pterm.DefaultEscapeKeys
 		if rc.detachKeys != "" {
 			customEscapeKeys, err := term.ToBytes(rc.detachKeys)
@@ -152,8 +150,7 @@ func (rc *RunCommand) runRun(args []string) error {
 		go func() {
 			reader := iout.NewReadCloserWrapper(term.NewEscapeProxy(os.Stdin, escapeKeys), conn.Close)
 			io.Copy(conn, reader)
-			term.RestoreTerminal(tfd, tstate)
-			defer reader.Close()
+			// defer reader.Close()
 
 			// close write
 			if cw, ok := conn.(ioutils.CloseWriter); ok {
