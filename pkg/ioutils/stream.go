@@ -94,7 +94,7 @@ func (i *InStream) SetRawTerminal() (err error) {
 // CheckTty checks if we are trying to attach to a container tty
 func (i *InStream) CheckTty(attachStdin, ttyMode bool) error {
 	if ttyMode && attachStdin && !i.isTerminal {
-		return errors.New("invalid tty input device")
+		return errors.New("the input device is not a TTY")
 	}
 	return nil
 }
