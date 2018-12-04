@@ -106,10 +106,19 @@ func (rc *RunCommand) runRun(args []string) error {
 		rc.attach = true
 	}
 
+	pouchCliStreams := ioutils.CliStream{
+		InStream:  ioutils.NewInStream(os.Stdin),
+		OutStream: ioutils.NewOutStream(os.Stdout),
+	}
+
+	if err := pouchCliStreams.InStream.CheckTty(rc.stdin, rc.tty); err != nil {
+		return err
+	}
+
 	var errCh chan error
 	if rc.attach || rc.stdin {
 		// attach container
-		closer, err := rc.attachContainer(ctx, &errCh, containerName, apiClient)
+		closer, err := rc.attachContainer(ctx, &pouchCliStreams, &errCh, containerName, apiClient)
 		if err != nil {
 			return fmt.Errorf("failed to attach container: %v", err)
 		}
@@ -154,6 +163,7 @@ func (rc *RunCommand) runRun(args []string) error {
 
 func (rc *RunCommand) attachContainer(
 	ctx context.Context,
+	cliStreams ioutils.Streams,
 	errCh *chan error,
 	containerName string,
 	apiClient client.CommonAPIClient,
@@ -173,15 +183,10 @@ func (rc *RunCommand) attachContainer(
 	ch := make(chan error, 1)
 	*errCh = ch
 
-	pouchCliStreams := ioutils.CliStream{
-		InStream:  ioutils.NewInStream(in),
-		OutStream: ioutils.NewOutStream(out),
-	}
-
 	go func() {
 		ch <- func() error {
 			streamer := ioutils.HijackedIOStreamer{
-				Streams:      &pouchCliStreams,
+				Streams:      cliStreams,
 				InputStream:  in,
 				OutputStream: out,
 				Conn:         conn,
